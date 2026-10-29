@@ -1,10 +1,10 @@
 import pygame
-import sys 
+import sys
 from pathlib import Path
 import numpy as np
 from chess_engine.board import Board
 
-SQ_SIZE = 80
+SQ_SIZE = 120
 BOARD_SIZE = 8 * SQ_SIZE
 ASSETS = Path(__file__).parent / ".." / "assets" / "pieces" / "alpha"
 # ASSETS = Path(__file__).parent/ "assets" / "pieces" / "alpha"
@@ -12,16 +12,7 @@ LIGHT = (240, 220, 200)
 DARK = (50, 50, 50)
 FPS = 60
 INVERT = False
-ORDER = ["bR", "bN", "bB", "bQ", "bK", "bB", "bN", "bR",
-         "bP", "bP", "bP", "bP", "bP", "bP", "bP", "bP",
-         "wP", "wP", "wP", "wP", "wP", "wP", "wP", "wP",
-         "wR", "wN", "wB", "wQ", "wK", "wB", "wN", "wR"]
-FIRST_ROW = {ORDER[i] + str(i): (i%8, 0) for i in range(8)}
-SECOND_ROW = {ORDER[i] + str(i%8): (i%8, 1) for i in range(8, 16)}
-SEVENTH_ROW = {ORDER[i] + str(i%8): (i%8, 6) for i in range(16, 24)}
-EIGHTH_ROW = {ORDER[i] + str(i%8): (i%8, 7) for i in range(24, 32)}
-POSITIONS = {**FIRST_ROW, **SECOND_ROW, **SEVENTH_ROW, **EIGHTH_ROW}
-SYMBOL_TO_PIECE = {symbol: name for symbol, name in zip(["r", "n", "b", "q", "k", "p", "P", "R", "N", "B", "Q", "K"], 
+SYMBOL_TO_PIECE = {symbol: name for symbol, name in zip(["r", "n", "b", "q", "k", "p", "P", "R", "N", "B", "Q", "K"],
                                                         ["bR", "bN", "bB", "bQ", "bK", "bP", "wP", "wR", "wN", "wB", "wQ", "wK"])}
 
 def load_pieces(scale: int) -> dict[str, pygame.Surface]:
@@ -36,7 +27,7 @@ def load_pieces(scale: int) -> dict[str, pygame.Surface]:
             print(f"Warning: Image file {image_path} not found.")
     return pieces
 
-class ChessGUI: 
+class ChessGUI:
     def __init__(self, board: Board):
         pygame.init()
         self.screen = pygame.display.set_mode((BOARD_SIZE, BOARD_SIZE))
@@ -45,9 +36,9 @@ class ChessGUI:
         self.pieces = load_pieces(SQ_SIZE)
         self.board = board
         self.selected_square = None
-        self.running = True 
+        self.running = True
 
-    
+
     def draw_board(self, scale: int):
         for row in range(8):
             for col in range(8):
@@ -58,7 +49,7 @@ class ChessGUI:
         for pos, item in enumerate(self.board.board):
             if item is not None:
                 key = SYMBOL_TO_PIECE[item]
-                x,y = pos%8, pos//8
+                x,y = pos%8, 7 - pos//8
             if key in self.pieces:
                 self.screen.blit(self.pieces[key], (x*SQ_SIZE, y*SQ_SIZE))
 
@@ -72,7 +63,7 @@ class ChessGUI:
         col, row = square
         rect = pygame.Rect(col * SQ_SIZE, row * SQ_SIZE, SQ_SIZE, SQ_SIZE)
         pygame.draw.rect(self.screen, color, rect, width)
-        
+
     def run(self):
         while self.running:
             self.draw_board(SQ_SIZE)
@@ -94,7 +85,7 @@ class ChessGUI:
         sys.exit()
 
 if __name__ == "__main__":
-    board = Board("rrrqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+    board = Board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
     ChessGUI(board).run()
 
 
