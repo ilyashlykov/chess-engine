@@ -154,7 +154,12 @@ class Board:
         directions = [(-1, 1), (-1, -1), (1, -1), (1, 1), (1, 0), (-1, 0), (0, -1), (0, 1)]
         for delta_file, delta_rank in directions:
             target = self.get_piece_positions(king)[0] + delta_rank*8 + delta_file
+            if target < 0:
+                continue
             target_mask = 1 << target
             if (target_mask & ~own_pieces) or (target_mask & occupied):
                 moves |= target_mask
         return moves
+
+board = Board(fen)
+# print(board.get_piece(0))
