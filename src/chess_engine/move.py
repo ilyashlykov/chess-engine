@@ -1,8 +1,7 @@
-from chess_engine import Board
+from dataclasses import dataclass
 
-class moveGenerator():
-    def __init__(self, board: Board):
-        self.board = board
-
-    def generate_moves(self):
-        
+@dataclass(frozen=True)
+class Move():
+    from_sq: int
+    to_sq: int
+    promotion: str | None = None
