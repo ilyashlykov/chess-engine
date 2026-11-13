@@ -1,5 +1,6 @@
 import numpy as np
 from chess_engine.move import Move
+from copy import deepcopy
 
 fen = str("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
 files = 'abcdefgh'
@@ -239,7 +240,7 @@ class Board:
             moves = self.generate_pawn_moves(1<<pos, self.black_occupancy, self.white_occupancy, 'b')
         elif piece == 'P':
             moves = self.generate_pawn_moves(1<<pos, self.white_occupancy, self.black_occupancy, 'w')
-        return moves # self.get_piece_positions(moves)
+        return moves
 
     def get_move_list_from_board(self, piece, pos):
         targets = self.get_piece_positions(
@@ -259,6 +260,18 @@ class Board:
                 moves.append(Move(pos, to_sq))
 
         return moves
+
+    def get_legal_move_list(self, piece, pos):
+        moves = self.get_move_list_from_board(piece, pos)
+        legal_moves = []
+        for move in moves:
+            test_board = deepcopy(self)
+            if not test_board.make_move(move) or not test_board.get_legal_moves():
+                continue 
+
+            legal_moves.append(move)
+        return legal_moves
+
 
     def check_en_passaunt(self, piece, from_sq, to_sq):
         if piece.lower() != 'p' or abs(from_sq - to_sq) != 16:
@@ -300,6 +313,29 @@ class Board:
             self.Brooks = (self.Brooks & ~(1 << rook_pos)) | 1 << new_pos
             self.board[new_pos] = 'r'
             self.board[rook_pos] = None
+
+    def get_legal_moves(self):
+        if self.turn == 'b':
+            pawns_moves = self.generate_pawn_moves(self.Bpawns, self.black_occupancy, self.white_occupancy, 'b')
+            rooks_moves  = self.generate_rook_moves(self.Brooks, self.black_occupancy, self.white_occupancy)
+            knights_moves = self.generate_knight_moves(self.Bknights, self.black_occupancy)
+            bishops_moves = self.generate_bishop_moves(self.Bbishops, self.black_occupancy, self.white_occupancy)
+            queen_moves = self.generate_queen_moves(self.Bqueen, self.black_occupancy, self.white_occupancy)
+            king_moves = self.generate_king_moves(self.Bking, self.black_occupancy, self.white_occupancy)
+            black_moves = pawns_moves | rooks_moves | knights_moves | bishops_moves | queen_moves | king_moves
+            if (black_moves & self.Wking):
+                return False
+        elif self.turn == 'w':
+            pawns_moves = self.generate_pawn_moves(self.Wpawns, self.white_occupancy, self.black_occupancy, 'w')
+            rooks_moves  = self.generate_rook_moves(self.Wrooks, self.white_occupancy, self.black_occupancy)
+            knights_moves = self.generate_knight_moves(self.Wknights, self.white_occupancy)
+            bishops_moves = self.generate_bishop_moves(self.Wbishops, self.white_occupancy, self.black_occupancy)
+            queen_moves = self.generate_queen_moves(self.Wqueen, self.white_occupancy, self.black_occupancy)
+            king_moves = self.generate_king_moves(self.Wking, self.white_occupancy, self.black_occupancy)
+            white_moves = pawns_moves | rooks_moves | knights_moves | bishops_moves | queen_moves | king_moves
+            if (white_moves & self.Bking):
+                return False
+        return True
 
 
     def make_move(self, move: Move):
@@ -365,6 +401,7 @@ class Board:
         self.turn = 'b' if self.turn == 'w' else 'w'
         if self.castling != '-':
             self.check_castling(piece)
+        # self.get_legal_moves()
         return True
 
 

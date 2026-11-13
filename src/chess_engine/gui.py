@@ -99,7 +99,8 @@ class ChessGUI:
         # self.legal_moves = self.board.get_piece_positions(
         #     self.board.get_moves_from_board(piece, square)
         # )
-        self.legal_moves = self.board.get_move_list_from_board(piece, square)
+        # self.legal_moves = self.board.get_move_list_from_board(piece, square)
+        self.legal_moves = self.board.get_legal_move_list(piece, square)
         return True
 
     # def commit_selected_move(self, to_square):
