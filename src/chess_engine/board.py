@@ -7,7 +7,6 @@ files = 'abcdefgh'
 class Board:
     def __init__(self, fen):
         positions, self.turn, self.castling, self.en_passant, self.halfmove_clock, self.fullmove_number = fen.split(' ')
-        self.castle_direction = '-'
         self.board = np.zeros(64, dtype=object)
         index = 0
         self.piece_bitboards = {
@@ -174,19 +173,17 @@ class Board:
             if (target_mask & ~own_pieces) or (target_mask & occupied):
                 moves |= target_mask
         if self.turn == 'w':
-            if (self.white_occupancy | self.black_occupancy) & 0b1110 == 0 and 'Q' in self.castling:
+            white_king_attacked = self.is_square_attacked(king, 'b', True)
+            if (self.white_occupancy | self.black_occupancy) & 0b1110 == 0 and 'Q' in self.castling and white_king_attacked:
                 moves |= 0b100
-                self.castle_direction = 'L'
-            if (self.white_occupancy | self.black_occupancy) & 0b1100000 == 0 and 'K' in self.castling:
+            if (self.white_occupancy | self.black_occupancy) & 0b1100000 == 0 and 'K' in self.castling and white_king_attacked:
                 moves |= 0b1000000
-                self.castle_direction = 'R'
         if self.turn == 'b':
-            if (self.white_occupancy | self.black_occupancy) & 0b1110 << 56 == 0 and 'q' in self.castling:
+            black_king_attacked = self.is_square_attacked(king, 'w', True)
+            if (self.white_occupancy | self.black_occupancy) & 0b1110 << 56 == 0 and 'q' in self.castling and black_king_attacked:
                 moves |= 0b100 << 56
-                self.castle_direction = 'L'
-            if (self.white_occupancy | self.black_occupancy) & 0b1100000 == 0 and 'k' in self.castling:
+            if (self.white_occupancy | self.black_occupancy) & 0b1100000 << 56 == 0 and 'k' in self.castling and black_king_attacked:
                 moves |= 0b1000000 << 56
-                self.castle_direction = 'R'
         return moves
 
     def generate_pawn_moves(self, pawns, own_pieces, occupied, color):
@@ -266,7 +263,8 @@ class Board:
         legal_moves = []
         for move in moves:
             test_board = deepcopy(self)
-            if not test_board.make_move(move) or not test_board.get_legal_moves():
+            king_bitboard = "Wking" if self.turn == 'w' else "Bking"
+            if not test_board.make_move(move) or not test_board.is_square_attacked(1 << (getattr(test_board, king_bitboard).bit_length() - 1)): # test_board.get_legal_moves():
                 continue 
 
             legal_moves.append(move)
@@ -304,36 +302,43 @@ class Board:
         to_sq = move.to_sq
         new_pos = (from_sq + to_sq) // 2
         if self.turn == 'w':
-            rook_pos = 0 if self.castle_direction == 'L' else 7
+            rook_pos = 0 if to_sq == 2 else 7
             self.Wrooks = (self.Wrooks & ~(1 << rook_pos)) | 1 << new_pos
             self.board[new_pos] = 'R'
             self.board[rook_pos] = None
         elif self.turn == 'b':
-            rook_pos = 56 if self.castle_direction == 'L' else 63
+            rook_pos = 56 if to_sq == 58 else 63
             self.Brooks = (self.Brooks & ~(1 << rook_pos)) | 1 << new_pos
             self.board[new_pos] = 'r'
             self.board[rook_pos] = None
 
-    def get_legal_moves(self):
-        if self.turn == 'b':
+    def is_square_attacked(self, pos, turn = None, is_king = False):
+        # pos = 1 << piece
+        if turn is None:
+            turn = self.turn
+        if turn == 'b':
             pawns_moves = self.generate_pawn_moves(self.Bpawns, self.black_occupancy, self.white_occupancy, 'b')
             rooks_moves  = self.generate_rook_moves(self.Brooks, self.black_occupancy, self.white_occupancy)
             knights_moves = self.generate_knight_moves(self.Bknights, self.black_occupancy)
             bishops_moves = self.generate_bishop_moves(self.Bbishops, self.black_occupancy, self.white_occupancy)
             queen_moves = self.generate_queen_moves(self.Bqueen, self.black_occupancy, self.white_occupancy)
-            king_moves = self.generate_king_moves(self.Bking, self.black_occupancy, self.white_occupancy)
-            black_moves = pawns_moves | rooks_moves | knights_moves | bishops_moves | queen_moves | king_moves
-            if (black_moves & self.Wking):
+            black_moves = pawns_moves | rooks_moves | knights_moves | bishops_moves | queen_moves
+            if not is_king:
+                king_moves = self.generate_king_moves(self.Bking, self.black_occupancy, self.white_occupancy)
+                black_moves |= king_moves
+            if (black_moves & pos):
                 return False
-        elif self.turn == 'w':
+        elif turn == 'w':
             pawns_moves = self.generate_pawn_moves(self.Wpawns, self.white_occupancy, self.black_occupancy, 'w')
             rooks_moves  = self.generate_rook_moves(self.Wrooks, self.white_occupancy, self.black_occupancy)
             knights_moves = self.generate_knight_moves(self.Wknights, self.white_occupancy)
             bishops_moves = self.generate_bishop_moves(self.Wbishops, self.white_occupancy, self.black_occupancy)
             queen_moves = self.generate_queen_moves(self.Wqueen, self.white_occupancy, self.black_occupancy)
-            king_moves = self.generate_king_moves(self.Wking, self.white_occupancy, self.black_occupancy)
-            white_moves = pawns_moves | rooks_moves | knights_moves | bishops_moves | queen_moves | king_moves
-            if (white_moves & self.Bking):
+            white_moves = pawns_moves | rooks_moves | knights_moves | bishops_moves | queen_moves
+            if not is_king:
+                king_moves = self.generate_king_moves(self.Wking, self.white_occupancy, self.black_occupancy)
+                white_moves |= king_moves
+            if (white_moves & pos):
                 return False
         return True
 
@@ -401,10 +406,7 @@ class Board:
         self.turn = 'b' if self.turn == 'w' else 'w'
         if self.castling != '-':
             self.check_castling(piece)
-        # self.get_legal_moves()
         return True
 
 
 board = Board(fen)
-# print(board.get_piece_positions(board.generate_pawn_moves(board.Wpawns, board.white_occupancy, board.black_occupancy, 'w')))
-# print(board.board)
